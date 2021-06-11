@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>长列表的虚拟滚动</title>
+    <meta name="viewport" content="initial-scale=1.0">
+    <meta name="format-detection" content="telephone=no, email=no">
+    <style>
+        h1 {
+            text-align: center;
+        }
+
+        .container {
+            width: 421px;
+            height: 400px;
+            overflow: auto;
+            border: 2px solid gray;
+            margin: 0 auto;
+            box-sizing: border-box;
+        }
+
+        .active {
+            pointer-events: none
+        }
+
+        .item {
+            min-height: 60px;
+            border-bottom: 1px solid #cccccc;
+            border-top: 1px solid #cccccc;
+            line-height: 60px;
+            width: 400px;
+            text-align: center;
+            background-color: darkgray;
+
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>长列表的虚拟滚动-防抖和节流</h1>
+
+    <div class="container">
+        <div class="content">
+            <div class="viewArea">
+                <div class="item">0</div>
+                <div class="item">1</div>
+                <div class="item">2</div>
+                <div class="item">3</div>
+                <div class="item">4</div>
+                <div class="item">5</div>
+                <div class="item">6</div>
+                <div class="item">7</div>
+                <div class="item">8</div>
+                <div class="item">9</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var item = document.querySelector('.viewArea .item');
+        var container = document.querySelector('.container');
+
+        var start = 0; // 开始位置
+        var pageSize = 10; // 每页展示的数据
+        var total = 10; //数据总长度
+
+
+        //获取样式
+        var itemStyle = getComputedStyle(item);
+        // 每个item的高度
+        var itemHeight = Number(itemStyle.height.split('px')[0]) + Number(itemStyle.borderTopWidth.split('px')[0]) + Number(itemStyle.borderBottomWidth.split('px')[0]);
+        // console.log('itemHeight', itemHeight);
+        // var itemHeight = 61; 
+
+        // 设置数据列表的总高度
+        document.querySelector('.container .content').style.height = itemHeight * total + 'px';
+        updateDom(start, pageSize, itemHeight, 0);
+
+        function updateDom(start, pageSize, itemHeight, height) {
+            document.querySelector('.container .content .viewArea').style.transform = 'translateY(' + height + 'px)';
+            let all = document.querySelectorAll(' .viewArea .item');
+            for (var i = start, itemIndex = 0, len = start + pageSize; i < len; i++, itemIndex++) {
+                // var index = i % pageSize;
+                all[itemIndex].innerHTML = i;
+            }
+        }
+
+        // 滚动处理函数
+        function handleScroller() {
+            var lastStart = 0; // 上次开始的位置
+            return () => {
+                var currentScrollTop = container.scrollTop;
+                var fixedScrollTop = currentScrollTop - currentScrollTop % itemHeight;
+                var start = Math.floor(currentScrollTop / itemHeight);
+                //滑动过程中尝试使用 pointer-events: none 禁止鼠标事件，可用来提高滚动时的帧频。
+                // document.querySelector('.container .content').className = "content active"
+                if (lastStart !== start) {
+                    lastStart = start;
+                    updateDom(start, pageSize, itemHeight, fixedScrollTop);
+                }
+            }
+        }
+
+        // 防抖和节流
+        function throttle(fn, delay, atleast) {
+            let timer = null;
+            let rAFtimer = null;
+            let previous = 0;
+
+            return function () {
+                let now = Date.now();
+                if (now - previous > atleast) {
+                    // console.log('now - previous > atleast');
+                    fn();
+                    previous = now;
+                } else {
+                    if (delay > 20) {
+                        // console.log('delay > 20');
+                        clearTimeout(timer);
+                        timer = setTimeout(function () {
+                            fn();
+                            previous = 0;
+                        }, delay);
+                    } else {
+                        // console.log('delay < 20');
+                        cancelAnimationFrame(rAFtimer);
+                        rAFtimer = requestAnimationFrame(function () {
+                            requestIdleCallback(fn);
+                        });
+                    }
+                }
+            }
+        }
+
+        // document.querySelector('.container').addEventListener('scroll', handleScroller());
+        //防抖节流节约性能，会出现闪烁现象
+        document.querySelector('.container').addEventListener('scroll', throttle(handleScroller(), 16, 200));
+    </script>
+</body>
+
+</html>
